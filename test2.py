@@ -13,10 +13,13 @@ class Dashboard:
         # Load data
         self.data = self.load_data()
 
+        # Variable to track if sorting is enabled
+        self.sort_enabled = tk.BooleanVar(value=False)
         # Create main frames
         self.create_header()
         self.create_sidebar()
         self.create_main_content()
+
 
         # Initialize with default view
         self.show_revenue_by_region()
@@ -46,11 +49,15 @@ class Dashboard:
         sidebar_frame = ttk.Frame(self.root, width=200)
         sidebar_frame.pack(side=tk.LEFT, fill=tk.Y)
 
+        # Buttons for various charts
         ttk.Button(sidebar_frame, text="Revenue by Region", command=self.show_revenue_by_region).pack(pady=5, padx=10, fill=tk.X)
         ttk.Button(sidebar_frame, text="Profit by Country", command=self.show_profit_by_country).pack(pady=5, padx=10, fill=tk.X)
         ttk.Button(sidebar_frame, text="Sales by Item", command=self.show_sales_by_item).pack(pady=5, padx=10, fill=tk.X)
         ttk.Button(sidebar_frame, text="Sales Over Time", command=self.show_sales_over_time).pack(pady=5, padx=10, fill=tk.X)
         ttk.Button(sidebar_frame, text="Sales by Channel", command=self.show_sales_by_channel).pack(pady=5, padx=10, fill=tk.X)
+
+        # Checkbox to toggle sorting
+        ttk.Checkbutton(sidebar_frame, text="Sort by Profit", command=self.show_revenue_by_region,variable=self.sort_enabled).pack(pady=5, padx=10)
 
     def create_main_content(self):
         self.content_frame = ttk.Frame(self.root)
@@ -64,7 +71,10 @@ class Dashboard:
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
     def show_revenue_by_region(self):
-        data_grouped = self.data.groupby('Region')['Total Revenue'].sum().sort_values(ascending=False)
+        data_grouped = self.data.groupby('Region')['Total Revenue'].sum()
+        if self.sort_enabled.get():
+            data_grouped = data_grouped.sort_values(ascending=False)
+
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='bar', ax=ax)
         ax.set_title('Revenue by Region')
@@ -73,8 +83,16 @@ class Dashboard:
         self.update_chart(fig)
 
     def show_profit_by_country(self):
-        # todo: 
-        data_grouped = self.data.groupby('Country')['Total Profit'].sum().sort_values(ascending=False)
+        # Group data by Country and sum profits
+        data_grouped = self.data.groupby('Country')['Total Profit'].sum()
+        
+        # Sort data if the checkbox is checked
+        if self.sort_enabled.get():
+            data_grouped = data_grouped.sort_values(ascending=False)
+        half_count = len(data_grouped) // 2
+        data_grouped = data_grouped.head(half_count)
+
+        # Plot the data
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='bar', ax=ax)
         ax.set_title('Profit by Country')
@@ -83,7 +101,10 @@ class Dashboard:
         self.update_chart(fig)
 
     def show_sales_by_item(self):
-        data_grouped = self.data.groupby('Item Type')['Units Sold'].sum().sort_values(ascending=False)
+        data_grouped = self.data.groupby('Item Type')['Units Sold'].sum()
+        if self.sort_enabled.get():
+            data_grouped = data_grouped.sort_values(ascending=False)
+
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='bar', ax=ax)
         ax.set_title('Sales by Item')
@@ -92,7 +113,10 @@ class Dashboard:
         self.update_chart(fig)
 
     def show_sales_over_time(self):
-        data_grouped = self.data.groupby('Order Date')['Total Revenue'].sum()
+        dfy=self.data.copy()
+        dfy['year']=dfy['Order Date'].dt.year
+        data_grouped = dfy.groupby('year')['Total Revenue'].sum()
+
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='line', ax=ax)
         ax.set_title('Sales Over Time')
