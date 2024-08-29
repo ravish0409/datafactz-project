@@ -84,9 +84,11 @@ class Dashboard:
 
     def add_BM(self,height,till=0,dol='$'):
         if height >= 1_000_000_000:
-            label = f'{dol}{height / 1_000_000_000:.2f}B'
-        else:
+            label = f'{dol}{height // 1_000_000_000:.0f},{(height%1_000_000_000)//1_000_000:03.0f}M'
+        elif height>=1_000_000:
             label = f'{dol}{height / 1_000_000:.{till}f}M'
+        else:
+            label= f'{dol}{height / 1_000_000:.1f}M' if height!=0 else f'{dol}{0}'
         return label
 
     def annotate_bars(self, ax,dol='$'):
