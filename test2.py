@@ -128,7 +128,7 @@ class Dashboard:
         if self.sort_enabled.get():
             data_grouped = data_grouped.sort_values(ascending=False)
 
-        half_count = len(data_grouped) // 2
+        half_count = len(data_grouped) // 8
         data_grouped = data_grouped.head(half_count)
 
         fig, ax = plt.subplots(figsize=(10, 6))
@@ -164,7 +164,19 @@ class Dashboard:
         self.annotate_bars(ax,"")
 
         plt.tight_layout()
-        summary = "Sales by Item Type:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
+        mk=self.data.groupby('Item Type').agg({
+            'Units Sold': 'sum',
+            'Unit Price': 'mean',
+            'Unit Cost': 'mean',
+            'Total Profit': 'sum'
+        })
+        if self.sort_enabled.get():
+            mk =mk.sort_values(by=['Total Profit'],ascending=False)
+        mk['Total Profit']=mk['Total Profit'].apply(lambda x: self.add_BM(x,2))
+        mk['Unit Price']=mk['Unit Price'].apply(lambda x: f'${x:.0f}')
+        mk['Unit Cost']=mk['Unit Cost'].apply(lambda x: f'${x:.0f}')
+        mk['Units Sold']=mk['Units Sold'].apply(lambda x: self.add_BM(x,2,""))
+        summary = "Sales by Item Type:\n" + mk.to_string()
         self.update_chart(fig, summary)
 
     def show_sales_over_time(self):
