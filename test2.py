@@ -2,7 +2,9 @@ import tkinter as tk
 from tkinter import ttk
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 class Dashboard:
     def __init__(self, root):
         self.root = root
@@ -25,12 +27,10 @@ class Dashboard:
 
     def load_data(self):
         try:
-            # Load data from CSV
             df = pd.read_csv("5000 Sales Records.csv")
             df[['Order ID', 'Units Sold', 'Unit Price', 'Unit Cost', 'Total Revenue', 'Total Cost', 'Total Profit']] = df[['Order ID', 'Units Sold', 'Unit Price', 'Unit Cost', 'Total Revenue', 'Total Cost', 'Total Profit']].astype(int)
             df['Order Date'] = pd.to_datetime(df['Order Date'])
             df['Ship Date'] = pd.to_datetime(df['Ship Date'])
-
             return df
         except FileNotFoundError:
             print("Error: The file '5000_Sales_Records.csv' was not found.")
@@ -56,7 +56,7 @@ class Dashboard:
         ttk.Button(sidebar_frame, text="Sales by Channel", command=self.show_sales_by_channel).pack(pady=5, padx=10, fill=tk.X)
 
         # Checkbox to toggle sorting
-        ttk.Checkbutton(sidebar_frame, text="Sort by Profit", command=self.show_revenue_by_region, variable=self.sort_enabled).pack(pady=5, padx=10)
+        ttk.Checkbutton(sidebar_frame, text="Sort all", command=self.show_revenue_by_region, variable=self.sort_enabled).pack(pady=5, padx=10)
 
     def create_main_content(self):
         self.content_frame = ttk.Frame(self.root)
@@ -67,6 +67,7 @@ class Dashboard:
         self.summary_text.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
 
     def update_chart(self, fig, summary):
+        plt.close(fig)
         # Clear existing widgets in the content_frame (except the text box)
         for widget in self.content_frame.winfo_children():
             if not isinstance(widget, tk.Text):
@@ -81,18 +82,36 @@ class Dashboard:
         self.summary_text.delete(1.0, tk.END)
         self.summary_text.insert(tk.END, summary)
 
+    def annotate_bars(self, ax,dol='$'):
+        for bar in ax.patches:
+            ax.annotate(f'{dol}{bar.get_height()/1_000_000:.1f}M', 
+                        xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()), 
+                        xytext=(0, -12), 
+                        textcoords="offset points", 
+                        ha='center', 
+                        va='bottom')
+        plt.tight_layout()
+
     def show_revenue_by_region(self):
         data_grouped = self.data.groupby('Region')['Total Revenue'].sum()
         if self.sort_enabled.get():
             data_grouped = data_grouped.sort_values(ascending=False)
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        data_grouped.plot(kind='bar', ax=ax)
+        plt.close(fig)
+        bars = data_grouped.plot(kind='bar', ax=ax)
+
+        # Set title and labels
         ax.set_title('Revenue by Region')
         ax.set_ylabel('Total Revenue')
-        plt.tight_layout()
 
-        summary = "Revenue by Region:\n" + data_grouped.to_string()
+        # Format the y-axis to display revenue in $100.0M
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f'${x/1e6:.0f}M'))
+
+        # Annotate bars
+        self.annotate_bars(ax)
+
+        summary = "Revenue by Region:\n" + data_grouped.apply(lambda x: f'${x/1_000_000:.1f}M').to_string()
         self.update_chart(fig, summary)
 
     def show_profit_by_country(self):
@@ -104,12 +123,19 @@ class Dashboard:
         data_grouped = data_grouped.head(half_count)
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        data_grouped.plot(kind='bar', ax=ax)
+        bars = data_grouped.plot(kind='bar', ax=ax)
+
+        # Set title and labels
         ax.set_title('Profit by Country')
         ax.set_ylabel('Total Profit')
-        plt.tight_layout()
 
-        summary = "Top countries by profit:\n" + data_grouped.to_string()
+        # Format the y-axis to display profit in $100.0M
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f'${x/1e6:.0f}M'))
+
+        # Annotate bars
+        self.annotate_bars(ax)
+
+        summary = "Top countries by profit:\n" + data_grouped.apply(lambda x: f'${x/1_000_000:.1f}M').to_string()
         self.update_chart(fig, summary)
 
     def show_sales_by_item(self):
@@ -118,12 +144,16 @@ class Dashboard:
             data_grouped = data_grouped.sort_values(ascending=False)
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        data_grouped.plot(kind='bar', ax=ax)
+        bars = data_grouped.plot(kind='bar', ax=ax)
+
+        # Set title and labels
         ax.set_title('Sales by Item')
         ax.set_ylabel('Units Sold')
-        plt.tight_layout()
 
-        summary = "Sales by Item Type:\n" + data_grouped.to_string()
+        # Annotate bars
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f'{x/1e6:.0f}M'))
+        self.annotate_bars(ax,"")
+        summary = "Sales by Item Type:\n" + data_grouped.apply(lambda x: f'${x/1_000_000:.1f}M').to_string()
         self.update_chart(fig, summary)
 
     def show_sales_over_time(self):
@@ -132,13 +162,18 @@ class Dashboard:
         data_grouped = dfy.groupby('year')['Total Revenue'].sum()
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        data_grouped.plot(kind='line', ax=ax)
+        lines = data_grouped.plot(kind='line', ax=ax)
+
+        # Set title and labels
         ax.set_title('Sales Over Time')
         ax.set_ylabel('Total Revenue')
-        ax.set_xlabel('Order Date')
-        plt.tight_layout()
+        ax.set_xlabel('Year')
 
-        summary = "Sales Over Time:\n" + data_grouped.to_string()
+        # Format the y-axis to display revenue in $100.0M
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: f'${x/1e6:.1f}M'))
+
+        plt.tight_layout()
+        summary = "Sales Over Time:\n" + data_grouped.apply(lambda x: f'${x/1_000_000:.1f}M').to_string()
         self.update_chart(fig, summary)
 
     def show_sales_by_channel(self):
@@ -149,7 +184,7 @@ class Dashboard:
         ax.set_title('Revenue by Channel')
         plt.tight_layout()
 
-        summary = "Sales by Channel:\n" + data_grouped.to_string()
+        summary = "Sales by Channel:\n" + data_grouped.apply(lambda x: f'${x/1_000_000_000:.1f}B').to_string()
         self.update_chart(fig, summary)
 
 if __name__ == "__main__":
