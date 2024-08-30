@@ -14,8 +14,11 @@ class Dashboard:
         # Load data
         self.data = self.load_data()
 
-        # Variable to track if sorting is enabled
-        self.sort_enabled = tk.BooleanVar(value=False)
+        # Variable to track sorting order
+        self.sort_var = tk.StringVar(value="none")
+
+        # Variable to track active button
+        self.active_button = None
 
         # Create main frames
         self.create_header()
@@ -49,14 +52,24 @@ class Dashboard:
         sidebar_frame.pack(side=tk.LEFT, fill=tk.Y)
 
         # Buttons for various charts
-        ttk.Button(sidebar_frame, text="Revenue by Region", command=self.show_revenue_by_region).pack(pady=5, padx=10, fill=tk.X)
-        ttk.Button(sidebar_frame, text="Profit by Country", command=self.show_profit_by_country).pack(pady=5, padx=10, fill=tk.X)
-        ttk.Button(sidebar_frame, text="Sales by Item", command=self.show_sales_by_item).pack(pady=5, padx=10, fill=tk.X)
-        ttk.Button(sidebar_frame, text="Revenue Over Time", command=self.show_sales_over_time).pack(pady=5, padx=10, fill=tk.X)
-        ttk.Button(sidebar_frame, text="Sales by Channel", command=self.show_sales_by_channel).pack(pady=5, padx=10, fill=tk.X)
+        self.buttons = {
+            "Revenue by Region": ttk.Button(sidebar_frame, text="Revenue by Region", command=lambda: self.show_revenue_by_region()),
+            "Profit by Country": ttk.Button(sidebar_frame, text="Profit by Country", command=lambda: self.show_profit_by_country()),
+            "Sales by Item": ttk.Button(sidebar_frame, text="Sales by Item", command=lambda: self.show_sales_by_item()),
+            "Revenue Over Time": ttk.Button(sidebar_frame, text="Revenue Over Time", command=lambda: self.show_sales_over_time()),
+            "Sales by Channel": ttk.Button(sidebar_frame, text="Sales by Channel", command=lambda: self.show_sales_by_channel())
+        }
 
-        # Checkbox to toggle sorting
-        ttk.Checkbutton(sidebar_frame, text="Sort all", command=self.show_revenue_by_region, variable=self.sort_enabled).pack(pady=5, padx=10)
+        for button in self.buttons.values():
+            button.pack(pady=5, padx=10, fill=tk.X)
+
+        # Radio buttons for sorting
+        sort_frame = ttk.LabelFrame(sidebar_frame, text="Sort Order")
+        sort_frame.pack(pady=10, padx=10, fill=tk.X)
+
+        ttk.Radiobutton(sort_frame, text="None", variable=self.sort_var, value="none", command=self.update_current_view).pack(anchor=tk.W)
+        ttk.Radiobutton(sort_frame, text="Ascending", variable=self.sort_var, value="ascending", command=self.update_current_view).pack(anchor=tk.W)
+        ttk.Radiobutton(sort_frame, text="Descending", variable=self.sort_var, value="descending", command=self.update_current_view).pack(anchor=tk.W)
 
     def create_main_content(self):
         self.content_frame = ttk.Frame(self.root)
@@ -68,6 +81,7 @@ class Dashboard:
 
     def update_chart(self, fig, summary):
         plt.close(fig)
+        
         # Clear existing widgets in the content_frame (except the text box)
         for widget in self.content_frame.winfo_children():
             if not isinstance(widget, tk.Text):
@@ -84,7 +98,7 @@ class Dashboard:
 
     def add_BM(self,height,till=0,dol='$'):
         if height >= 1_000_000_000:
-            label = f'{dol}{height // 1_000_000_000:.0f},{(height%1_000_000_000)//1_000_000:03.0f}M'
+            label = f'{dol}{height // 1_000_000_000:.0f},{(height/10_000_000):.{till}f}M'
         elif height>=1_000_000:
             label = f'{dol}{height / 1_000_000:.{till}f}M'
         else:
@@ -97,16 +111,50 @@ class Dashboard:
             label=self.add_BM(height,1,dol) # add $ and M and B
             ax.annotate(label, 
                         xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()), 
-                        xytext=(0, -13), 
+                        xytext=(0, 0), 
                         textcoords="offset points", 
                         ha='center', 
                         va='bottom')
         plt.tight_layout()
 
+    def apply_sorting(self, data):
+        if self.sort_var.get() == "ascending":
+            return data.sort_values(ascending=True)
+        elif self.sort_var.get() == "descending":
+            return data.sort_values(ascending=False)
+        return data
+    def sort_with_col(self,data_col,col):
+        if self.sort_var.get() == "ascending":
+            return data_col.sort_values(by=col,ascending=True)
+        elif self.sort_var.get() == "descending":
+            return data_col.sort_values(by=col,ascending=False)
+        return data_col
+    def highlight_active_button(self, active_button_text):
+        # Reset all buttons to default style
+        for button in self.buttons.values():
+            button.configure(style='TButton')
+
+        # Highlight the active button
+        if active_button_text in self.buttons:
+            self.buttons[active_button_text].configure(style='Accent.TButton')
+
+        self.active_button = active_button_text
+
+    def update_current_view(self):
+        if self.active_button == "Revenue by Region":
+            self.show_revenue_by_region()
+        elif self.active_button == "Profit by Country":
+            self.show_profit_by_country()
+        elif self.active_button == "Sales by Item":
+            self.show_sales_by_item()
+        elif self.active_button == "Revenue Over Time":
+            self.show_sales_over_time()
+        elif self.active_button == "Sales by Channel":
+            self.show_sales_by_channel()
+
     def show_revenue_by_region(self):
         data_grouped = self.data.groupby('Region')['Total Revenue'].sum()
-        if self.sort_enabled.get():
-            data_grouped = data_grouped.sort_values(ascending=False)
+        data_grouped = self.apply_sorting(data_grouped)
 
         fig, ax = plt.subplots(figsize=(10, 6))
 
@@ -124,11 +172,11 @@ class Dashboard:
         plt.tight_layout()
         summary = "Revenue by Region:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
         self.update_chart(fig, summary)
+        self.highlight_active_button("Revenue by Region")
 
     def show_profit_by_country(self):
         data_grouped = self.data.groupby('Country')['Total Profit'].sum()
-        if self.sort_enabled.get():
-            data_grouped = data_grouped.sort_values(ascending=False)
+        data_grouped = self.apply_sorting(data_grouped)
 
         half_count = len(data_grouped) // 8
         data_grouped = data_grouped.head(half_count)
@@ -148,11 +196,11 @@ class Dashboard:
         plt.tight_layout()
         summary = "Top countries by profit:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
         self.update_chart(fig, summary)
+        self.highlight_active_button("Profit by Country")
 
     def show_sales_by_item(self):
         data_grouped = self.data.groupby('Item Type')['Units Sold'].sum()
-        if self.sort_enabled.get():
-            data_grouped = data_grouped.sort_values(ascending=False)
+        data_grouped = self.apply_sorting(data_grouped)
 
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='bar', ax=ax)
@@ -172,14 +220,15 @@ class Dashboard:
             'Unit Cost': 'mean',
             'Total Profit': 'sum'
         })
-        if self.sort_enabled.get():
-            mk =mk.sort_values(by=['Total Profit'],ascending=False)
+  
+        mk=self.sort_with_col(mk,'Total Profit')
         mk['Total Profit']=mk['Total Profit'].apply(lambda x: self.add_BM(x,2))
         mk['Unit Price']=mk['Unit Price'].apply(lambda x: f'${x:.0f}')
         mk['Unit Cost']=mk['Unit Cost'].apply(lambda x: f'${x:.0f}')
         mk['Units Sold']=mk['Units Sold'].apply(lambda x: self.add_BM(x,2,""))
         summary = "Sales by Item Type:\n" + mk.to_string()
         self.update_chart(fig, summary)
+        self.highlight_active_button("Sales by Item")
 
     def show_sales_over_time(self):
         dfy = self.data.copy()
@@ -188,7 +237,7 @@ class Dashboard:
 
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='line', ax=ax)
-
+        ax.plot(data_grouped.index, data_grouped.values, 'o', color='darkblue', markersize=8)
         # Set title and labels
         ax.set_title('Total Revenue Over Time')
         ax.set_ylabel('Total Revenue')
@@ -196,13 +245,22 @@ class Dashboard:
 
         # Format the y-axis to display revenue in $100.0M
         ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x)))
-
+        for year, revenue in data_grouped.items():
+            ax.annotate(self.add_BM(revenue, 1), 
+                        xy=(year, revenue), 
+                        xytext=(0, 5),  # Offset the text slightly above the point
+                        textcoords='offset points', 
+                        ha='center', 
+                        va='bottom')
         plt.tight_layout()
+        data_grouped = self.apply_sorting(data_grouped)
         summary = "Total Revenue Over Time:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
         self.update_chart(fig, summary)
+        self.highlight_active_button("Revenue Over Time")
 
     def show_sales_by_channel(self):
         data_grouped = self.data.groupby('Sales Channel')['Total Revenue'].sum()
+        data_grouped = self.apply_sorting(data_grouped)
 
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='pie', autopct='%1.1f%%', ax=ax)
@@ -210,8 +268,11 @@ class Dashboard:
         plt.tight_layout()
         summary = "Sales by Channel:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
         self.update_chart(fig, summary)
+        self.highlight_active_button("Sales by Channel")
 
 if __name__ == "__main__":
     root = tk.Tk()
+    style = ttk.Style()
+    style.configure('Accent.TButton', background='lightblue')
     app = Dashboard(root)
     root.mainloop()
