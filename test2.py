@@ -96,7 +96,7 @@ class Dashboard:
         self.summary_text.delete(1.0, tk.END)
         self.summary_text.insert(tk.END, summary)
 
-    def add_BM(self,height,till=0,dol='$'):
+    def add_BM(self,height,till=0,dol='$') -> str:
         if height >= 1_000_000_000:
             label = f'{dol}{height // 1_000_000_000:.0f},{(height/10_000_000):.{till}f}M'
         elif height>=1_000_000:
@@ -117,13 +117,13 @@ class Dashboard:
                         va='bottom')
         plt.tight_layout()
 
-    def apply_sorting(self, data):
+    def apply_sorting(self, data)-> pd.Series:
         if self.sort_var.get() == "ascending":
             return data.sort_values(ascending=True)
         elif self.sort_var.get() == "descending":
             return data.sort_values(ascending=False)
         return data
-    def sort_with_col(self,data_col,col):
+    def sort_with_col(self,data_col,col) -> pd.DataFrame:
         if self.sort_var.get() == "ascending":
             return data_col.sort_values(by=col,ascending=True)
         elif self.sort_var.get() == "descending":
@@ -151,7 +151,42 @@ class Dashboard:
             self.show_sales_over_time()
         elif self.active_button == "Sales by Channel":
             self.show_sales_by_channel()
+    def create_table_str(self,table_name: str, series: pd.Series, col1_name: str, col2_name: str, col_width: int) -> str:
+        # Table title with formatting
+        table_title = f'{table_name}' 
+        # Create the header row with custom column names
+        header = f'{col1_name:<{col_width}}|  {col2_name:<{col_width}}|'
+        separator = '-' * len(header)
+        rows = [table_title,separator , header, separator]
 
+        for i, value in series.items():
+            row = f'{i:<{col_width}}|  {value:<{col_width}}|'
+            rows.append(row)
+
+        return '\n'.join(rows)
+    def create_df_str(self,table_name: str, dataframe: pd.DataFrame, col1_name: str, all_column_names: list[str], col_width: int) -> str:
+
+        table_title = f'{table_name}'
+
+        header = f'{col1_name:<{col_width}}|  '  
+        for col in all_column_names:
+            header += f'{col:<{col_width}}|  '
+        
+   
+        separator = '-' * (len(header)-2)
+        
+    
+        rows = [table_title,separator, header, separator]
+        
+        # Loop through the DataFrame and format each index and row
+        for i, row in dataframe.iterrows():
+            row_str = f'{i:<{col_width}}|  '  # Add index
+            for col in all_column_names:
+                row_str += f'{str(row[col]):<{col_width}}|  '  # Add each column value
+            rows.append(row_str)
+        
+        # Join all rows into a single string with line breaks
+        return '\n'.join(rows)
     def show_revenue_by_region(self):
         data_grouped = self.data.groupby('Region')['Total Revenue'].sum()
         data_grouped = self.apply_sorting(data_grouped)
@@ -170,7 +205,7 @@ class Dashboard:
         # Annotate bars
         self.annotate_bars(ax)
         plt.tight_layout()
-        summary = "Revenue by Region:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
+        summary = self.create_table_str("Revenue by Region:",data_grouped.apply(lambda x: self.add_BM(x,2) ),'Region','Total Revenue',35)
         self.update_chart(fig, summary)
         self.highlight_active_button("Revenue by Region")
 
@@ -194,7 +229,8 @@ class Dashboard:
         self.annotate_bars(ax)
 
         plt.tight_layout()
-        summary = "Top countries by profit:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
+        
+        summary = self.create_table_str("Top countries by profit:",data_grouped.apply(lambda x: self.add_BM(x,2) ),'Country','Total Profit',25)
         self.update_chart(fig, summary)
         self.highlight_active_button("Profit by Country")
 
@@ -227,6 +263,7 @@ class Dashboard:
         mk['Unit Cost']=mk['Unit Cost'].apply(lambda x: f'${x:.0f}')
         mk['Units Sold']=mk['Units Sold'].apply(lambda x: self.add_BM(x,2,""))
         summary = "Sales by Item Type:\n" + mk.to_string()
+        summary=self.create_df_str("Sales by Item Type:",mk,'Item Type',mk.columns,15)
         self.update_chart(fig, summary)
         self.highlight_active_button("Sales by Item")
 
@@ -254,7 +291,7 @@ class Dashboard:
                         va='bottom')
         plt.tight_layout()
         data_grouped = self.apply_sorting(data_grouped)
-        summary = "Total Revenue Over Time:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
+        summary = self.create_table_str("Total Revenue Over Time:",data_grouped.apply(lambda x: self.add_BM(x,2) ),'year','Total Revenue',15)
         self.update_chart(fig, summary)
         self.highlight_active_button("Revenue Over Time")
 
@@ -266,13 +303,14 @@ class Dashboard:
         data_grouped.plot(kind='pie', autopct='%1.1f%%', ax=ax)
         ax.set_title('Revenue by Channel')
         plt.tight_layout()
-        summary = "Sales by Channel:\n" + data_grouped.apply(lambda x: self.add_BM(x,2) ).to_string()
+
+        summary = self.create_table_str("Sales by Channel:",data_grouped.apply(lambda x: self.add_BM(x,2) ),'Sales Channel','Total Revenue',20)
         self.update_chart(fig, summary)
         self.highlight_active_button("Sales by Channel")
 
 if __name__ == "__main__":
     root = tk.Tk()
     style = ttk.Style()
-    style.configure('Accent.TButton', background='lightblue')
+    style.configure('Accent.TButton', background='green')
     app = Dashboard(root)
     root.mainloop()
