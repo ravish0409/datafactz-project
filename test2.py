@@ -20,6 +20,9 @@ class Dashboard:
         # Variable to track active button
         self.active_button = None
 
+        # Variable to track selected region
+        self.region_var = tk.StringVar(value="Asia")
+
         # Create main frames
         self.create_header()
         self.create_sidebar()
@@ -27,7 +30,6 @@ class Dashboard:
 
         # Initialize with default view
         self.show_revenue_by_region()
-
     def load_data(self):
         try:
             df = pd.read_csv("5000 Sales Records.csv")
@@ -75,6 +77,19 @@ class Dashboard:
         self.content_frame = ttk.Frame(self.root)
         self.content_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
 
+        # Create a frame for the region selector at the top
+        self.selector_frame = ttk.Frame(self.content_frame)
+        self.selector_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+        # Create the region selector (hidden by default)
+        self.region_label = ttk.Label(self.selector_frame, text="Select Region:")
+        self.region_selector = ttk.Combobox(self.selector_frame, textvariable=self.region_var, state="readonly")
+        self.region_selector.bind("<<ComboboxSelected>>", self.update_profit_by_country)
+
+        # Create a frame for the chart
+        self.chart_frame = ttk.Frame(self.content_frame)
+        self.chart_frame.pack(side=tk.TOP, expand=True, fill=tk.BOTH)
+
         # Create a Text widget for the summary report
         self.summary_text = tk.Text(self.content_frame, height=10, wrap=tk.WORD)
         self.summary_text.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
@@ -82,13 +97,12 @@ class Dashboard:
     def update_chart(self, fig, summary):
         plt.close(fig)
         
-        # Clear existing widgets in the content_frame (except the text box)
-        for widget in self.content_frame.winfo_children():
-            if not isinstance(widget, tk.Text):
-                widget.destroy()
+        # Clear existing widgets in the chart_frame
+        for widget in self.chart_frame.winfo_children():
+            widget.destroy()
 
         # Update the chart
-        canvas = FigureCanvasTkAgg(fig, master=self.content_frame)
+        canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
@@ -140,17 +154,23 @@ class Dashboard:
 
         self.active_button = active_button_text
 
+        # Show or hide the region selector based on the active button
+        if active_button_text == "Profit by Country":
+            self.selector_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+        else:
+            self.selector_frame.pack_forget()   
     def update_current_view(self):
         if self.active_button == "Revenue by Region":
             self.show_revenue_by_region()
         elif self.active_button == "Profit by Country":
-            self.show_profit_by_country()
+            self.update_profit_by_country()
         elif self.active_button == "Sales by Item":
             self.show_sales_by_item()
         elif self.active_button == "Revenue Over Time":
             self.show_sales_over_time()
         elif self.active_button == "Sales by Channel":
             self.show_sales_by_channel()
+
     def create_table_str(self,table_name: str, series: pd.Series, col1_name: str, col2_name: str, col_width: int) -> str:
         # Table title with formatting
         table_title = f'{table_name}' 
@@ -198,7 +218,7 @@ class Dashboard:
         # Set title and labels
         ax.set_title('Revenue by Region')
         ax.set_ylabel('Total Revenue')
-
+        plt.xticks(rotation=25, ha='right')
         # Format the y-axis to display revenue in $100.0M
         ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x) ))
 
@@ -210,30 +230,45 @@ class Dashboard:
         self.highlight_active_button("Revenue by Region")
 
     def show_profit_by_country(self):
-        data_grouped = self.data.groupby('Country')['Total Profit'].sum()
+        # Get unique regions and update the region selector
+        regions = sorted(self.data['Region'].unique())
+        self.region_selector['values'] = regions
+        
+        # Show the region selector
+        self.region_label.pack(side=tk.LEFT, padx=5)
+        self.region_selector.pack(side=tk.LEFT, padx=5)
+
+        self.update_profit_by_country()
+
+        self.highlight_active_button("Profit by Country")
+    def update_profit_by_country(self, event=None):
+        selected_region = self.region_var.get()
+        
+        # Filter data for the selected region
+        region_data = self.data[self.data['Region'] == selected_region]
+        
+        data_grouped = region_data.groupby('Country')['Total Profit'].sum()
         data_grouped = self.apply_sorting(data_grouped)
 
-        half_count = len(data_grouped) // 8
+        half_count = len(data_grouped) // 2
         data_grouped = data_grouped.head(half_count)
 
         fig, ax = plt.subplots(figsize=(10, 6))
         data_grouped.plot(kind='bar', ax=ax)
 
         # Set title and labels
-        ax.set_title('Profit by Country')
+        ax.set_title(f'Profit by Country in {selected_region}')
         ax.set_ylabel('Total Profit')
 
         # Format the y-axis to display profit in $100.0M
-        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x) ))
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x)))
         # Annotate bars
         self.annotate_bars(ax)
 
         plt.tight_layout()
         
-        summary = self.create_table_str("Top countries by profit:",data_grouped.apply(lambda x: self.add_BM(x,2) ),'Country','Total Profit',25)
+        summary = self.create_table_str(f"Top countries by profit in {selected_region}:", data_grouped.apply(lambda x: self.add_BM(x,2)), 'Country', 'Total Profit', 25)
         self.update_chart(fig, summary)
-        self.highlight_active_button("Profit by Country")
-
     def show_sales_by_item(self):
         data_grouped = self.data.groupby('Item Type')['Units Sold'].sum()
         data_grouped = self.apply_sorting(data_grouped)
@@ -244,9 +279,10 @@ class Dashboard:
         # Set title and labels
         ax.set_title('Sales by Item')
         ax.set_ylabel('Units Sold')
-
+        plt.xticks(rotation=25, ha='right')
         # Annotate bars
         ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x,0,"") ))
+
         self.annotate_bars(ax,"")
 
         plt.tight_layout()
