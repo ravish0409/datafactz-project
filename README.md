@@ -8,6 +8,8 @@ The **Sales Data Dashboard** is a Python-based project developed during the Data
 - **Matplotlib**: To create visualizations such as charts and graphs.
 
 ### Code Structure
+
+
  
 - **Dashboard Class:** Manages all the functions of the dashboard.
 - **__init__ Method:** Sets up the layout, loads the data, and displays the default view.
@@ -15,6 +17,8 @@ The **Sales Data Dashboard** is a Python-based project developed during the Data
 - **create_header and create_sidebar Methods:** Set up the header and sidebar where users can control the dashboard.
 - **create_main_content Method:** Displays the main area for data visualizations.
 - **Visualization Methods:** Show different graphs, like revenue by region.
+  
+![image](https://github.com/user-attachments/assets/8f3d8662-141d-444f-934d-b6beadc89717)
 
 ---
 
