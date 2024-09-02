@@ -200,25 +200,25 @@ class Dashboard:
 
         table_title = f'{table_name}'
 
-        header = f'{col1_name:<{col_width}}|  '  
+        header = f'| {col1_name:<{col_width}}|  '  
         for col in all_column_names:
             header += f'{col:<{col_width}}|  '
         
    
-        separator = '-' * (len(header)-2)
+        separator = '+'+'-' * (len(header)-4)+'+'
         
     
         rows = [table_title,separator, header, separator]
         
         # Loop through the DataFrame and format each index and row
         for i, row in dataframe.iterrows():
-            row_str = f'{i:<{col_width}}|  '  # Add index
+            row_str = f'| {i:<{col_width}}|  '  # Add index
             for col in all_column_names:
                 row_str += f'{str(row[col]):<{col_width}}|  '  # Add each column value
             rows.append(row_str)
         
         # Join all rows into a single string with line breaks
-        return '\n'.join(rows)
+        return '\n'.join(rows)+'\n'+separator
     def show_revenue_by_region(self):
         data_grouped = self.data.groupby('Region')['Total Revenue'].sum()
         data_grouped = self.apply_sorting(data_grouped)
