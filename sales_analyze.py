@@ -71,7 +71,8 @@ class Dashboard:
             "Profit by Country": ttk.Button(sidebar_frame, text="Profit by Country", command=lambda: self.show_profit_by_country()),
             "Sales by Item": ttk.Button(sidebar_frame, text="Sales by Item", command=lambda: self.show_sales_by_item()),
             "Revenue Over Time": ttk.Button(sidebar_frame, text="Revenue Over Time", command=lambda: self.show_sales_over_time()),
-            "Sales by Channel": ttk.Button(sidebar_frame, text="Sales by Channel", command=lambda: self.show_sales_by_channel())
+            "Sales by Channel": ttk.Button(sidebar_frame, text="Sales by Channel", command=lambda: self.show_sales_by_channel()),
+            "Sales by Month": ttk.Button(sidebar_frame, text="Sales by Month", command=lambda: self.show_sales_by_month())
         }
 
         for button in self.buttons.values():
@@ -134,7 +135,7 @@ class Dashboard:
     def annotate_bars(self, ax,dol='$'):
         for bar in ax.patches:
             height = bar.get_height()
-            label=self.add_BM(height,1,dol) # add $ and M and B
+            label=self.add_BM(height,1,dol) # add $ and M 
             ax.annotate(label, 
                         xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()), 
                         xytext=(0, 0), 
@@ -182,6 +183,8 @@ class Dashboard:
             self.show_sales_over_time()
         elif self.active_button == "Sales by Channel":
             self.show_sales_by_channel()
+        elif self.active_button=='Sales by Month':
+            self.show_sales_by_month()
 
     def create_table_str(self,table_name: str, series: pd.Series, col1_name: str, col2_name: str, col_width: int) -> str:
         # Table title with formatting
@@ -299,7 +302,7 @@ class Dashboard:
         ax.set_ylabel('Units Sold')
         plt.xticks(rotation=25, ha='right')
         # Annotate bars
-        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x,0,"") ))
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x,1,"") ))
 
         self.annotate_bars(ax,"")
 
@@ -316,7 +319,7 @@ class Dashboard:
         mk['Unit Price']=mk['Unit Price'].apply(lambda x: f'${x:.0f}')
         mk['Unit Cost']=mk['Unit Cost'].apply(lambda x: f'${x:.0f}')
         mk['Units Sold']=mk['Units Sold'].apply(lambda x: self.add_BM(x,2,""))
-        summary = "Sales by Item Type:\n" + mk.to_string()
+       
         summary=self.create_df_str("Sales by Item Type:",mk,'Item Type',mk.columns,15)
         self.update_chart(fig, summary)
         self.highlight_active_button("Sales by Item")
@@ -361,6 +364,62 @@ class Dashboard:
         summary = self.create_table_str("Sales by Channel:",data_grouped.apply(lambda x: self.add_BM(x,2) ),'Sales Channel','Total Revenue',20)
         self.update_chart(fig, summary)
         self.highlight_active_button("Sales by Channel")
+    def show_sales_by_month(self):
+        df = self.data.copy()
+
+        # Define month order
+        month_order = ['January', 'February', 'March', 'April', 'May', 'June', 
+                    'July', 'August', 'September', 'October', 'November', 'December']
+
+        # Extract the month name from 'Order Date'
+        df['month'] = df['Order Date'].dt.month_name()
+
+        # Convert the 'month' column to a categorical type with the correct order
+        df['month'] = pd.Categorical(df['month'], categories=month_order, ordered=True)
+
+        # Group by 'Item Type' and 'month', summing the 'Total Revenue' with observed=True to avoid the FutureWarning
+        sales_per_year = df.groupby(['Item Type', 'month'], observed=True)['Total Revenue'].mean().unstack()
+
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        # Plot each item's revenue across months
+        for item_type in sales_per_year.index:
+            ax.plot(month_order, sales_per_year.loc[item_type], marker='o', label=item_type, linewidth=2, markersize=6)
+
+        # Add title and labels
+        ax.set_title('Average Revenue by Item Type and Month')
+        ax.set_xlabel('Month', )
+        ax.set_ylabel('Total Revenue', fontsize=12)
+        # Customize tick parameters for better visibility
+        ax.yaxis.set_major_formatter(mtick.FuncFormatter(lambda x, _: self.add_BM(x,1)))
+        # ax.tick_params(axis='x', rotation=45, labelsize=10)
+        # ax.tick_params(axis='y', labelsize=10)
+
+        # Add legend for item types
+        ax.legend(title='Item Type',  fontsize='10', loc='upper left', bbox_to_anchor=(1, 1))
+
+        # Improve the grid visibility
+        ax.grid(True, linestyle='--', alpha=0.6)
+
+        # Adjust layout to ensure everything fits well
+        plt.tight_layout()
+        
+        if self.sort_var.get() == "ascending":
+            sales_per_year.sort_index(inplace=True)
+        elif self.sort_var.get() == "descending":
+            sales_per_year.sort_index(ascending=False,inplace=True)
+        
+        for i in sales_per_year.columns:
+            sales_per_year[i]=sales_per_year[i].apply(lambda x: self.add_BM(x,2))
+        # Generate the summary table
+        summary = self.create_df_str("Total Revenue by Month:", sales_per_year, 'Month', sales_per_year.columns, 12)
+        # summary=sales_per_year.to_string()
+        # Update the chart in the UI
+        self.update_chart(fig, summary)
+
+        # Highlight active button
+        self.highlight_active_button("Sales by Month")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
