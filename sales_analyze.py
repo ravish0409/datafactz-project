@@ -32,29 +32,40 @@ class Dashboard:
         self.show_revenue_by_region()
     def load_data(self):
         try:
+            # Load the CSV file
             df = pd.read_csv("5000 Sales Records.csv")
 
+            # Drop missing and duplicate values
             df.dropna(inplace=True)
             df.drop_duplicates(inplace=True)
             
+            # Convert dates to datetime format
             df['Order Date'] = pd.to_datetime(df['Order Date'])
             df['Ship Date'] = pd.to_datetime(df['Ship Date'])
-            
- 
+
+            # Strip whitespace from string columns
             df = df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
-            
+
+            # Define the columns that need to be numeric
             cols_to_numeric = ['Units Sold', 'Unit Price', 'Unit Cost', 'Total Revenue', 'Total Cost', 'Total Profit']
-            # create a NaN value if any of these column contain other then numeric value
-            df[cols_to_numeric] = df[cols_to_numeric].apply(pd.to_numeric, errors='coerce') 
-            
+
+            # Check if all required columns exist, raise KeyError if not
+            missing_cols = [col for col in cols_to_numeric if col not in df.columns]
+            if missing_cols:
+                raise KeyError(f"Missing columns in the dataset: {missing_cols}")
+
+            # Convert to numeric, coerce errors to NaN
+            df[cols_to_numeric] = df[cols_to_numeric].apply(pd.to_numeric, errors='coerce')
+
+            # Drop rows with NaN values (which may occur after coercing non-numeric values)
             df.dropna(inplace=True)
+
             return df
+
         except FileNotFoundError:
-            print("Error: The file '5000_Sales_Records.csv' was not found.")
-        except ValueError as e:
+            print("Error: The file '5000 Sales Records.csv' was not found.")
+        except KeyError as e:
             print(f"Error: {e}")
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
 
     def create_header(self):
         header_frame = ttk.Frame(self.root)
@@ -380,7 +391,7 @@ class Dashboard:
         # Group by 'Item Type' and 'month', summing the 'Total Revenue' with observed=True to avoid the FutureWarning
         sales_per_year = df.groupby(['Item Type', 'month'], observed=True)['Total Revenue'].mean().unstack()
 
-        fig, ax = plt.subplots(figsize=(12, 8))
+        fig, ax = plt.subplots(figsize=(8, 6))
 
         # Plot each item's revenue across months
         for item_type in sales_per_year.index:
