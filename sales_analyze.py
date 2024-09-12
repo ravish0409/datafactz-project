@@ -88,20 +88,20 @@ class Dashboard:
             ("Average monthly Revenue", "month"),
         ]
 
-        # Loop through the list to create LabelFrames and Labels dynamically
+
         for index, (title, report_key) in enumerate(box_data):
-            # Create a LabelFrame for each item in the list
+
             box = tk.LabelFrame(container_frame, text=title, bg="white")
             box.grid(row=0, column=index+1, padx=10, pady=10, sticky="nsew")
             
-            # Create a Label inside the LabelFrame with dynamic data
             tk.Label(box, text=self.report(report_key), 
-                    font=("TkDefaultFont", 15, "bold"), bg="white").grid(row=0, column=0, padx=10, pady=10)
+                    font=("TkDefaultFont", 15, "bold"), bg="white").grid(row=0, column=0, padx=30, pady=10)
 
         # Configure grid columns to resize evenly if window is resized
         for i in range(22):
             container_frame.grid_columnconfigure(i, weight=1)
-    
+
+    # gives text data to the text box container_frame
     def report(self,column):
 
         if column=='year':
