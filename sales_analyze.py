@@ -68,13 +68,62 @@ class Dashboard:
             print(f"Error: {e}")
 
     def create_header(self):
+        # Create the header frame
         header_frame = ttk.Frame(self.root)
         header_frame.pack(fill=tk.X)
-        ttk.Label(header_frame, text="Sales Data Analysis with python", font=("Helvetica", 24, "bold")).pack(pady=10)
+        
+        # Add the main title at the top
+        ttk.Label(header_frame, text="Sales Data Analysis with Python", 
+                font=("Helvetica", 20, "bold")).pack(pady=10)
+
+        # Create a container frame for the boxes and use grid layout
+        container_frame = tk.Frame(header_frame)
+        container_frame.pack(fill=tk.X, padx=80, pady=10)
+
+        # Define a list of boxes with their corresponding report keys
+        box_data = [
+            ("Total Revenue", "Total Revenue"),
+            ("Total Profit", "Total Profit"),
+            ("Average yearly Revenue", "year"),
+            ("Average monthly Revenue", "month"),
+        ]
+
+        # Loop through the list to create LabelFrames and Labels dynamically
+        for index, (title, report_key) in enumerate(box_data):
+            # Create a LabelFrame for each item in the list
+            box = tk.LabelFrame(container_frame, text=title, bg="white")
+            box.grid(row=0, column=index+1, padx=10, pady=10, sticky="nsew")
+            
+            # Create a Label inside the LabelFrame with dynamic data
+            tk.Label(box, text=self.report(report_key), 
+                    font=("TkDefaultFont", 15, "bold"), bg="white").grid(row=0, column=0, padx=10, pady=10)
+
+        # Configure grid columns to resize evenly if window is resized
+        for i in range(22):
+            container_frame.grid_columnconfigure(i, weight=1)
+    
+    def report(self,column):
+
+        if column=='year':
+            df=self.data.copy()
+            df['year'] = pd.to_datetime(df['Order Date']).dt.year
+            m=df.groupby('year')['Total Revenue'].sum().mean()
+            return self.add_BM(m,2)
+        elif  column == "month":
+            df1=self.data.copy()
+            df1['year'] = pd.to_datetime(df1['Order Date']).dt.year
+            df1['month'] = pd.to_datetime(df1['Order Date']).dt.month
+            m=df1.groupby(['year','month'])['Total Revenue'].sum().mean()
+            return self.add_BM(m,2)
+        else:        
+            m=self.data[column].sum()
+            return self.add_BM(m,2)
+    
 
     def create_sidebar(self):
         sidebar_frame = ttk.Frame(self.root, width=200)
         sidebar_frame.pack(side=tk.LEFT, fill=tk.Y)
+
 
         # Buttons for various charts
         self.buttons = {
@@ -96,6 +145,7 @@ class Dashboard:
         ttk.Radiobutton(sort_frame, text="None", variable=self.sort_var, value="none", command=self.update_current_view).pack(anchor=tk.W)
         ttk.Radiobutton(sort_frame, text="Ascending", variable=self.sort_var, value="ascending", command=self.update_current_view).pack(anchor=tk.W)
         ttk.Radiobutton(sort_frame, text="Descending", variable=self.sort_var, value="descending", command=self.update_current_view).pack(anchor=tk.W)
+
 
     def create_main_content(self):
         self.content_frame = ttk.Frame(self.root)
