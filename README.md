@@ -2,6 +2,8 @@
 
 The **Sales Data Dashboard** is a Python-based project developed during the DataFactZ workshop. The goal of the project is to create an interactive dashboard that helps users visualize and analyze sales data. The dashboard offers various features like data filtering, sorting, and graphical visualizations.
 
+![image](https://github.com/user-attachments/assets/23c15d38-9573-4725-803d-3b44ce6a09b4)
+
 ### Key Technologies:
 - **Tkinter**: Used for building the graphical user interface (GUI).
 - **Pandas**: For data manipulation and analysis.
