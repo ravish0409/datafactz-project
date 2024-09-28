@@ -74,7 +74,7 @@ class Dashboard:
         
         # Add the main title at the top
         ttk.Label(header_frame, text="Sales Data Analysis with Python", 
-                font=("Helvetica", 20, "bold")).pack(pady=10)
+                font=("Helvetica", 20, "bold")).pack()
 
         # Create a container frame for the boxes and use grid layout
         container_frame = tk.Frame(header_frame)
@@ -166,7 +166,7 @@ class Dashboard:
 
         # Create a Text widget for the summary report
         self.summary_text = tk.Text(self.content_frame, height=12, wrap=tk.WORD)
-        self.summary_text.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+        self.summary_text.pack(side=tk.BOTTOM, fill=tk.X, padx=12, pady=6)
 
     def update_chart(self, fig, summary):
         plt.close(fig)
